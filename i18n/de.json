@@ -1,5 +1,34 @@
 {
+	"@metadata": {
+		"authors": [
+			"Jkimmel",
+			"Metalhead64"
+		]
+	},
+	"tr-server-down": "Server nicht erreichbar",
+	"tr-unsupported": "Nicht unterstütztes Gerät, Release, Ziel, Unterziel oder Board.",
+	"tr-no-sysupgrade": "Keine Sysupgrade-Datei erstellt. Möglicherweise wird sie bei diesem Modell nicht unterstützt.",
+	"tr-filesize": "Aufgrund der Imagegröße wurde keine Firmwaredatei erstellt. Starte einen neuen Versuch mit weniger ausgewählten Paketen.",
+	"tr-unknown-package": "Unbekanntes Paket angefordert",
+	"tr-overload": "Bitte warten. Der Server ist überlastet.",
+	"tr-buildlog": "Build log",
 	"tr-advanced": "Erweitert",
 	"tr-building": "Firmware wird erstellt",
-	"tr-imagebuilder-not-ready": "ImageBuilder wird initialisiert"
+	"tr-initialize-imagebuilder": "Initialisiere ImageBuilder",
+	"tr-queue-position": "Dein Build ist in der Warteschlange",
+	"tr-created": "Image erstellt",
+	"tr-distro": "Distribution",
+	"tr-release": "Release",
+	"tr-model": "Router-Modell",
+	"tr-start-typing": "Tippen …",
+	"tr-network-profile": "Netzwerkprofil",
+	"tr-flavor": "Ausprägung",
+	"tr-edit-packages": "Pakete bearbeiten",
+	"tr-packages": "Pakete",
+	"tr-problem": "Problem?",
+	"tr-source-code": "Quellcode",
+	"tr-help": "Hilfe",
+	"tr-settings": "Einstellungen",
+    "tr-donate": "🍺",
+	"tr-create-image": "Image erstellen"
 }

@@ -1,4 +1,10 @@
 {
+	"@metadata": {
+		"authors": [
+			"Fitoschido",
+			"Leandro"
+		]
+	},
 	"tr-server-down": "El servidor està aturat",
 	"tr-unsupported": "Dispositiu, llançament, arquitectura, subarquitectura o placa no suportats.",
 	"tr-no-sysupgrade": "No s'ha produït cap fitxer sysupgrade, potser no està suportat per a aquest model.",
@@ -9,7 +15,7 @@
 	"tr-advanced": "Opcions avançades",
 	"tr-building": "S'està generant el microprogramari.",
 	"tr-initialize-imagebuilder": "Inicialitzant l'ImageBuilder",
-	"tr-queue-position": "En la cua de compilació, us trobeu en la posició ",
+	"tr-queue-position": "En la cua de compilació, us trobeu en la posició",
 	"tr-created": "S'ha creat la imatge",
 	"tr-distro": "Distribució",
 	"tr-release": "Llançament",
@@ -18,5 +24,10 @@
 	"tr-network-profile": "Perfil de xarxa",
 	"tr-flavor": "Versió",
 	"tr-edit-packages": "Edita els paquets",
-	"tr-packages": "Paquets"
+	"tr-packages": "Paquets",
+	"tr-problem": "Problema?",
+	"tr-source-code": "Codi font",
+	"tr-help": "Ajuda",
+	"tr-settings": "Paràmetres",
+	"tr-create-image": "Crear Imatge"
 }

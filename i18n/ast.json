@@ -1,0 +1,32 @@
+{
+	"@metadata": {
+		"authors": [
+			"Xuacu"
+		]
+	},
+	"tr-server-down": "Sirvidor cayíu",
+	"tr-unsupported": "Incompatibilidá de preséu, versión, destín, subdestín o placa.",
+	"tr-no-sysupgrade": "Nun se creó un ficheru sysupgrade, escurque'l modelu nun tien sofitu.",
+	"tr-filesize": "Nun pudo crease'l firmware debíu al tamañu de la imaxe. Tenta nuevamente escoyendo menos paquetes.",
+	"tr-unknown-package": "Hai un paquete desconocíu na solicitú",
+	"tr-overload": "Espera, por favor, el sirvidor ta sobrecargáu",
+	"tr-buildlog": "Rexistru de compilación",
+	"tr-advanced": "Avanzao",
+	"tr-building": "Compilando firmware.",
+	"tr-initialize-imagebuilder": "Inicializando ImageBuilder",
+	"tr-queue-position": "Tas na cola de compilación na posición",
+	"tr-created": "Imaxe creada",
+	"tr-distro": "Distribución",
+	"tr-release": "Versión",
+	"tr-model": "Modelu del router",
+	"tr-start-typing": "Principia a escribir...",
+	"tr-network-profile": "Perfil de la rede",
+	"tr-flavor": "Sabor",
+	"tr-edit-packages": "Editar paquetes",
+	"tr-packages": "Paquetes",
+	"tr-problem": "¿Problemes?",
+	"tr-source-code": "Códigu fonte",
+	"tr-help": "Ayuda",
+	"tr-settings": "Configuración",
+	"tr-create-image": "Crear la imaxe"
+}

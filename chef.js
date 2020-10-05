@@ -2,8 +2,16 @@ function $(s) {
     return document.getElementById(s.substring(1));
 }
 
+function $$(s) {
+    return document.getElementById(s.substring(1)).value;
+}
+
 function show(s) {
     $(s).style.display = 'block';
+}
+
+function inline(s) {
+    $(s).style.display = 'inline';
 }
 
 function hide(s) {
@@ -11,7 +19,7 @@ function hide(s) {
 }
 
 function toggle(s) {
-    if($(s).style.display == 'none') {
+    if ($(s).style.display == 'none') {
         show(s)
     } else {
         hide(s)
@@ -24,73 +32,62 @@ function toggle_image_packages() {
 
 function load_image_info() {
     data.image = {}
-    var xmlhttp = new XMLHttpRequest();
-    var request_url = server + "/api/image/" + location.hash.substring(1);
-    xmlhttp.open("GET", request_url, true);
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            image_info_results(xmlhttp);
-        }
-    }
-    xmlhttp.send();
-
-    function image_info_results(xmlhttp) {
-        data.image = JSON.parse(xmlhttp.responseText);
-        for (var key in data.image) {
-            if($("#image_" + key)) {
-                $("#image_" + key).innerHTML = data.image[key]
+    fetch(server + "/api/image/" + data.image_hash)
+        .then(response => response.json())
+        .then(function(image_info) {
+            data.image = image_info
+            if (data.image.snapshots) {
+                inline("#unstable_warning")
             }
-        }
-        load_installed_packages();
-    }
+            if (data.image.defaults_hash) {
+                inline("#custom_info")
+            }
+            for (var key in data.image) {
+                if ($("#image_" + key)) {
+                    if (key == 'build_date') {
+                        $("#image_build_date").innerHTML = data.image[key].substring(0, 10)
+                    } else {
+                        $("#image_" + key).innerHTML = data.image[key]
+                    }
+                }
+            }
+            load_manifest();
+        });
 }
 
-function load_installed_packages() {
+function load_manifest() {
     $("#packages_box").innerHTML = ""
-    var xmlhttp = new XMLHttpRequest();
-    var request_url = server + "/api/manifest/" + data.image.manifest_hash;
-    xmlhttp.open("GET", request_url, true);
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            image_info_results(xmlhttp);
-        }
-    }
-    xmlhttp.send();
-
-    function image_info_results(xmlhttp) {
-        data.image.packages = JSON.parse(xmlhttp.responseText);
-        $("#installed_packages").innerHTML = "Installed packages (" + Object.keys(data.image.packages).length + ")"
-        var list = document.createElement('ul');
-        for (var name in data.image.packages) {
-            var item = document.createElement('li');
-            item.innerHTML = "<b>" + name + "</b> - " + data.image.packages[name] + "</br>"
-            list.appendChild(item)
-        }
-        $("#packages_box").appendChild(list);
-    }
+    fetch(server + "/api/manifest/" + data.image.manifest_hash)
+        .then(response => response.json())
+        .then(function(manifest) {
+            $("#packages_count").innerHTML = "(" + Object.keys(manifest).length + ")"
+            var list = document.createElement('ul');
+            Object.keys(manifest).sort().map(function(name) {
+                var item = document.createElement('li');
+                item.innerHTML = "<b>" + name + "</b> - " + manifest[name] + "</br>"
+                list.appendChild(item)
+            })
+            $("#packages_box").appendChild(list);
+        });
 }
 
 function translate() {
     config.language = $("#lang").value;
-    var xmlhttp = new XMLHttpRequest();
-    console.log("request lang " + config.language)
-    xmlhttp.open("GET", "i18n/" + config.language + ".json", true);
-    xmlhttp.setRequestHeader("Content-type", "application/json");
-
-    xmlhttp.onload = function() {
-        translations[config.language] = JSON.parse(xmlhttp.responseText);
-        var mapping = translations[config.language];
-        for (var id in mapping) {
-            var elements = document.getElementsByClassName(id);
-            for (var i in elements) {
-                if (elements.hasOwnProperty(i)) {
-                    elements[i].innerHTML = mapping[id];
+    fetch("i18n/" + config.language + ".json")
+        .then(response => response.json())
+        .then(function(language) {
+            translations[config.language] = language;
+            var mapping = translations[config.language];
+            for (var id in mapping) {
+                var elements = document.getElementsByClassName(id);
+                for (var i in elements) {
+                    if (elements.hasOwnProperty(i)) {
+                        elements[i].innerHTML = mapping[id];
+                    }
                 }
             }
-        }
-    }
-    xmlhttp.send(null);
-};
+        });
+}
 
 function tr(id) {
     var mapping = translations[config.language];
@@ -103,6 +100,7 @@ function tr(id) {
 }
 
 var delay_timer;
+
 function search_delayed() {
     clearTimeout(delay_timer);
     delay_timer = setTimeout(search, 500);
@@ -110,99 +108,91 @@ function search_delayed() {
 
 function search() {
     var device = $("#search_device").value;
-    if(device.length < 3) { return }
-
-    var distro = $("#distro").value;
-    var release = $("#release").value;
-
-    request_url = server + "/api/models?model_search=" + device + "&distro=" + distro + "&release=" + release
-
-    var xmlhttp = new XMLHttpRequest();
-    xmlhttp.open("GET", request_url, true);
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            device_results(xmlhttp);
-        }
+    if (device.length < 3) {
+        return
     }
-    xmlhttp.send(null);
 
-    function device_results(xmlhttp) {
-        data.devices = JSON.parse(xmlhttp.responseText)
-        redraw_devices();
-        load_default_packages();
-        set_device_info();
-    }
+    request_url = server + "/api/models?model_search=" + device +
+        "&distro=" + $$("#distro") + "&version=" + $$("#version")
+
+    fetch(request_url)
+        .then(response => response.json())
+        .then(function(response) {
+            data.devices = response;
+            redraw_devices();
+            load_default_packages();
+            set_device_info();
+        });
 };
 
-function redraw_devices() {
-  if(data.devices) {
-    var selected_device = $("#profile").selectedIndex
-    document.request_form.profile.options.length = 0;
-    if(data.devices.length == 0) {
-      document.request_form.btn_create.disabled = true;
-      document.request_form.btn_edit_packages.disabled = true;
-      document.request_form.profile[0] = new Option("Not found")
-    } else {
-      document.request_form.btn_create.disabled = false;
-      document.request_form.btn_edit_packages.disabled = false;
-      for(var i = 0; i < data.devices.length; i++) {
-        if(document.request_form.advanced_view.checked || data.devices[i].model == "Generic") {
-          document.request_form.profile[i] = new Option(data.devices[i].model + " (" + data.devices[i].target + "/" +data.devices[i].subtarget + "/" + data.devices[i].profile + ")")
-        } else {
-          document.request_form.profile[i] = new Option(data.devices[i].model)
-        }
-        document.request_form.profile[i].value = data.devices[i].target + "/" + data.devices[i].subtarget + "/" + data.devices[i].profile
-      }
-      $("#profile").selectedIndex = selected_device;
-    }
-  }
+function load_banner() {
+    fetch("/banner.html")
+        .then(function(response) {
+            if (response.ok) {
+                return response.text();
+            } else {
+                return "";
+            }
+        }).then(function(response) {
+            $("#banner").innerHTML = response
+        });
 }
 
-
-function load_distros() {
-    var xmlhttp = new XMLHttpRequest();
-    request_url = server + "/api/distros";
-
-    xmlhttp.open("GET", request_url, true);
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            distros_results(xmlhttp);
-        }
-    }
-    xmlhttp.send(null);
-
-    function distros_results(xmlhttp) {
-        distros = JSON.parse(xmlhttp.responseText);
-        document.request_form.distro.options.length = 0;
-
-        var default_distro_index = 0;
-        for(var i = 0; i < distros.length; i++) {
-            var distros_length = document.request_form.distro.length;
-            document.request_form.distro[distros_length] = new Option(distros[i].name)
-            document.request_form.distro[distros_length].value = distros[i].name
-            document.request_form.distro[distros_length].innerHTML = distros[i].alias
-            if(distros[i].name === default_distro) {
-                default_distro_index = i;
+function redraw_devices() {
+    if (data.devices) {
+        var selected_device = $("#profile").selectedIndex
+        $("#profile").options.length = 0;
+        if (data.devices.length == 0) {
+            $("#btn_create").disabled = true;
+            $("#btn_edit_packages").disabled = true;
+            $("#profile")[0] = new Option("Not found")
+        } else {
+            $("#btn_create").disabled = false;
+            $("#btn_edit_packages").disabled = false;
+            for (var i = 0; i < data.devices.length; i++) {
+                $("#profile")[i] = new Option(
+                    data.devices[i].model + " (" + data.devices[i].target + ")")
+                $("#profile")[i].value = data.devices[i].target + "/" + data.devices[i].profile
             }
+            $("#profile").selectedIndex = selected_device;
         }
-        document.request_form.distro.selectedIndex = default_distro_index;
-        load_releases();
     }
-};
+}
+
+function load_dists() {
+    fetch(server + "/api/distributions")
+        .then(response => response.json())
+        .then(function(response) {
+            dists = response;
+            for (dist in dists) {
+                var dists_length = $("#distro").length;
+                var opt = document.createElement("option");
+                opt.value = dist;
+                opt.innerHTML = dists[dist].distro_alias
+                $("#distro").appendChild(opt);
+            }
+            $("#distro").value = default_distro;
+            dist_changed();
+        });
+}
 
 function load_flavors() {
-    for(flavor in flavors) {
-        flavors_length = document.request_form.flavor.length;
-        document.request_form.flavor[flavors_length] = new Option(flavor)
-        document.request_form.flavor[flavors_length].value = flavor
-        document.request_form.flavor[flavors_length].innerHTML = flavors[flavor][0]
+    $("#flavor").options.length = 0;
+    if (flavors[$("#distro").value]) {
+        show("#flavor_div")
+        for (flavor in flavors[$("#distro").value]) {
+            var opt = document.createElement("option");
+            opt.value = flavor
+            opt.innerHTML = flavors[$("#distro").value][flavor][0]
+            $("#flavor").appendChild(opt);
+        }
+    } else {
+        hide("#flavor_div")
     }
 }
 
 function set_packages_flavor() {
-    packages_flavor = flavors[document.request_form.flavor.value][1].split(" ");
+    packages_flavor = flavors[$("#distro").value][$("#flavor").value][1].split(" ");
     if (typeof packages == 'undefined') {
         load_default_packages();
     } else {
@@ -215,113 +205,59 @@ function profile_changed() {
     load_default_packages();
 }
 
-function get_distro_releases(distro) {
-    var distro_releases = []
-    for(var i = 0; i < releases.length; i++) {
-        if(releases[i].distro == distro) {
-            distro_releases[distro_releases.length] = releases[i].release
-        }
-    }
-    return distro_releases
+function load_network_profiles() {
+    fetch(server + "/network-profiles/Packages")
+        .then(function(response) {
+            if (response.ok) {
+                return response.text();
+            } else {
+                return "";
+            }
+        }).then(function(network_profiles) {
+            var network_profiles = network_profiles.split("\n")
+            for (var i = 0; i < network_profiles.length; i++) {
+                if (network_profiles[i].startsWith("Package: ")) {
+                    var network_profile = network_profiles[i].substring(9) // remove leading "Package: "
+                    var network_profiles_length = $("#network_profile").length;
+                    $("#network_profile")[network_profiles_length] = new Option(network_profile);
+                    $("#network_profile")[network_profiles_length].value = network_profile;
+                }
+            }
+            $("#network_profile").value = default_profile;
+        });
 }
 
-function load_network_profiles() {
-    var xmlhttp = new XMLHttpRequest();
-    request_url = "https://repo.libremesh.org/network-profiles/Packages";
-
-    xmlhttp.open("GET", request_url, true);
-    xmlhttp.overrideMimeType("text/plain")
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            network_profiles_results(xmlhttp);
-        }
-    }
-    xmlhttp.send(null);
-
-    function network_profiles_results(xmlhttp) {
-        var network_profiles = xmlhttp.responseText.split("\n");
-
-        for(var i = 0; i < network_profiles.length; i++) {
-            if (network_profiles[i].startsWith("Package: ")) {
-                var network_profile = network_profiles[i].substring(9) // remove leading "Package: "
-                var network_profiles_length = document.request_form.network_profile.length;
-                document.request_form.network_profile[network_profiles_length] = new Option(network_profile.substr(3)) // remove leading "np-"
-                document.request_form.network_profile[network_profiles_length].value = network_profile
-            }
-        }
-    }
-};
-
-function load_releases() {
-    var xmlhttp = new XMLHttpRequest();
-    var device = $("#search_device").value;
-    var distro = $("#distro").value;
-    //var release = $("#release").value;
-
-    request_url = server + "/api/releases"
-
-    xmlhttp.open("GET", request_url, true);
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            releases_results(xmlhttp);
-        }
-    }
-    xmlhttp.send(null);
-
-    function releases_results(xmlhttp) {
-        releases = JSON.parse(xmlhttp.responseText);
-        distro_changed();
-    }
-};
-
 function set_device_info() {
-    profile_split = document.request_form.profile.value.split("/");
-    target = profile_split[0]
-    subtarget = profile_split[1]
+    profile_split = $("#profile").value.split("/");
+    target = profile_split[0] + "/" + profile_split[1]
     profile = profile_split[2]
 }
 
 function load_default_packages() {
-    var xmlhttp = new XMLHttpRequest();
-    var device = $("#search_device").value;
-    var distro = $("#distro").value;
-    var release = $("#release").value;
     set_device_info()
-    if(typeof target != 'undefined' && typeof subtarget != 'undefined' && typeof profile != 'undefined') {
-
-        request_url = server + "/api/default_packages?distro=" + distro + "&release=" + release + "&target=" + target + "&subtarget=" + subtarget+ "&profile=" + profile
-
-        xmlhttp.open("GET", request_url, true);
-
-        xmlhttp.onreadystatechange = function () {
-            if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                packages_image_results(xmlhttp);
-            }
-        }
-        xmlhttp.send(null);
+    var device = $$("#search_device");
+    var distro = $$("#distro");
+    var version = $$("#version");
+    var request_url = server + "/api/packages_image?distro=" + distro + "&version=" + version + "&target=" + encodeURI(target) + "&profile=" + profile
+    if (typeof target != 'undefined' && typeof profile != 'undefined') {
+        fetch(request_url)
+            .then(response => response.json())
+            .then(function(packages_image) {
+                data.packages_image = packages_image
+                edit_packages_update();
+            });
     } else {
-        packages_image = [];
-        edit_packages_update();
-    }
-
-    function packages_image_results(xmlhttp) {
-        packages_image = diff_packages(JSON.parse(xmlhttp.responseText).packages);
+        data.packages_image = [];
         edit_packages_update();
     }
 };
 
 function edit_packages_update() {
-    if (packages_flavor != []) {
-        packages = diff_packages(packages_image.concat(packages_flavor))
-    } else {
-        packages = packages_image.slice()
+    packages = data.packages_image.concat(packages_flavor)
+    if ($("#network_profile").value != "" && $("#distro").value == "lime") {
+        packages[packages.length] = $("#network_profile").value
     }
-    if (document.request_form.network_profile.value != "") {
-        packages[packages.length] = document.request_form.network_profile.value
-    }
-    document.request_form.edit_packages.value = packages.join("\n");
+    $("#edit_packages").value = packages.join("\n");
 }
 
 function packages_input() {
@@ -329,144 +265,110 @@ function packages_input() {
     show("#edit_packages_div")
 }
 
-function diff_packages(packages_diff) {
-    packages_remove = [];
-    packages_install = [];
-    for (var i = 0; i < packages_diff.length; i++) {
-        if (packages_diff[i].startsWith("-")) {
-            packages_remove.push(packages_diff[i]);
-        } else {
-            packages_install.push(packages_diff[i]);
-        }
-    }
-    for (var j = 0; j < packages_remove.length; j++) {
-        package_index = packages_install.indexOf(packages_remove[j].substring(1))
-        if(package_index != -1) {
-            packages_install.splice(package_index, 1);
-        }
-    }
-    return(packages_install)
-}
-
-function distro_changed() {
-    var distro_releases = get_distro_releases(document.request_form.distro[document.request_form.distro.selectedIndex].value)
-    $("#release_div").innerHTML = ""
-    if (document.request_form.advanced_view.checked) {
-        var releases_select = document.createElement("select")
-        releases_select.id = "release"
-        releases_select.classList = "custom-select"
-        for(var i = 0; i < distro_releases.length; i++) {
-            releases_select[releases_select.length] = new Option(distro_releases[i])
-        }
-        $("#release_div").appendChild(releases_select)
-    } else {
-        releases_text = document.createElement("input")
-        releases_text.type = "text"
-        releases_text.readOnly = true
-        releases_text.classList = "form-control-plaintext"
-        releases_text.id = "release"
-        releases_text.value = distro_releases[0]
-        $("#release_div").appendChild(releases_text)
-    }
-
-    if(document.request_form.distro[document.request_form.distro.selectedIndex].value === "lime") {
-        show("#lime_config");
-        document.request_form.flavor.selectedIndex = 2; // lime_default
-        flavor = "lime_default";
-    }  else {
-        hide("#lime_config");
-        document.request_form.flavor.selectedIndex = 0; // None
-        flavor = "";
-        packages_flavor = []
-        packages = []
-    }
-    set_packages_flavor();
+function version_changed() {
+    $("#version_desc").innerHTML = dists[$$("#distro")]["versions"][$$("#version")].version_description || ""
     search();
 }
 
+function dist_changed() {
+    $("#version").options.length = 0;
+
+    for (var version in dists[$$("#distro")].versions) {
+        var title = version
+        $("#version")[$("#version").length] = new Option(title)
+    }
+
+    if (dists[$$("#distro")].latest != "") {
+        $("#version").value = dists[$$("#distro")].latest
+    }
+
+    $("#distro_desc").innerHTML = dists[$$("#distro")].distro_description || ""
+
+    if ($("#distro").value === "lime") {
+        show("#lime_config");
+        $("#flavor").value = "lime_default"
+    } else {
+        hide("#lime_config");
+        $("#flavor").value = ""
+    }
+    load_flavors();
+    set_packages_flavor();
+    version_changed();
+}
+
 function create() {
+    last_position = null;
+    queue_counter = 0;
     data = {}
     hide("#download_factory_div");
     hide("#download_box");
-    $("#files_box").innerHTML = "Advanced view";
     hide("#info_box");
     hide("#error_box");
+    hide("#unstable_warning");
+    hide("#custom_info");
     packages = [];
     delete hash
-    edit_packages_split = document.request_form.edit_packages.value.replace(/ /g, "\n").split("\n")
-    for(var i = 0; i < edit_packages_split.length; i++) {
+    location.hash = ""
+    edit_packages_split = $("#edit_packages").value.replace(/ /g, "\n").split("\n")
+    for (var i = 0; i < edit_packages_split.length; i++) {
         package_trimmed = edit_packages_split[i].trim()
         if (package_trimmed != "") {
             packages.push(package_trimmed)
         }
     }
     request_dict = {}
-    request_dict.distro = document.request_form.distro.value;
-    request_dict.version = document.request_form.release.value;
-    profile_split = document.request_form.profile.value.split("/");
-    request_dict.target = profile_split[0]
-    request_dict.subtarget = profile_split[1]
+    request_dict.distro = $("#distro").value;
+    request_dict.version = $("#version").value;
+    profile_split = $("#profile").value.split("/");
+    request_dict.target = profile_split[0] + "/" + profile_split[1]
     request_dict.board = profile_split[2]
+    request_dict.profile= profile_split[2]
+    request_dict.defaults = $("#edit_defaults").value
     if (packages != "") {
         request_dict.packages = packages
     }
-    var shaObj = new jsSHA("SHA-256", "TEXT");
-    pkg_hash_sort = packages.sort()
-    shaObj.update(pkg_hash_sort.join(" "))
-    pkg_hash = shaObj.getHash("HEX").substring(0, 12);
-    hash_string = [request_dict.distro, request_dict.version,request_dict.target, request_dict.subtarget, request_dict.board, pkg_hash, ""].join(" ")
-    var shaObj = new jsSHA("SHA-256", "TEXT");
-    shaObj.update(hash_string)
-    hash = shaObj.getHash("HEX").substring(0, 12);
-    if(request_dict.version == "snapshot") {
-        info_box("Check if snapshot ImageBuilder is outdated")
-        var xmlhttp = new XMLHttpRequest();
-        var url = server + "/api/flush?distro=" + request_dict.distro + "&target=" + request_dict.target + "&subtarget=" + request_dict.subtarget
-        xmlhttp.open("GET", url, true);
-        xmlhttp.onload = function () {
-            if(xmlhttp.status == 200) {
-                info_box("Removed outdated snapshot ImageBuilder")
-            }
-            image_request()
-        };
-        xmlhttp.send();
-    } else {
-        image_request()
-    }
+    image_request()
 }
 
-function toggle_advanced_view() {
-    search(); // run search to redraw target/subtarget/profile combi or hide it
-    if (document.request_form.advanced_view.checked) {
-        action = "block"
-    } else {
-        action = "none"
-
+function check_maintenance() {
+    if (maintenance_message != "") {
+        show("#maintenance_box")
+        $("#maintenance_message").innerHTML = maintenance_message
     }
-    var advanced_elements = document.querySelectorAll(".advanced_view");
-    for(var i = 0; i < advanced_elements.length; i++) {
-        advanced_elements[i].style.display = action;
-    }
-  redraw_devices();
 }
 
 function bootstrap() {
+    check_maintenance();
     data = {}
-    if(location.hash != "") {
+    if (location.hash != "") {
         hash = location.hash.substring(1)
         image_request()
     }
     packages_flavor = ""
-    load_distros();
+    load_dists();
     load_network_profiles();
-    load_flavors();
-    toggle_advanced_view();
+    load_image_stats();
+    load_banner();
 }
 
+function load_image_stats() {
+    var request_url = server + "/api/v1/stats/image_stats"
+    fetch(request_url)
+        .then(response => response.json())
+        .then(function(response) {
+            $("#images_total").innerHTML = response.total
+        });
+
+}
 
 // shows notification if update is available
-function info_box(info_output) {
-    $("#info_box").innerHTML = info_output;
+function info_box(info_output, loading) {
+    $("#info_box_content").innerHTML = info_output;
+    if (loading) {
+        inline("#info_box_loading")
+    } else {
+        hide("#info_box_loading")
+    }
     show("#info_box");
 }
 
@@ -478,9 +380,9 @@ function error_box(error_output) {
 
 // requests to the update server
 function server_request(request_dict, path, callback) {
-    var url = server + "/" + path
+    var url = server + path
     var xmlhttp = new XMLHttpRequest();
-    if(request_dict != "") {
+    if (request_dict != "") {
         method = "POST"
     } else {
         method = "GET"
@@ -490,17 +392,17 @@ function server_request(request_dict, path, callback) {
     xmlhttp.onerror = function(e) {
         error_box(tr("tr-server-down"))
     };
-    xmlhttp.onload = function () {
+    xmlhttp.onload = function() {
         callback(xmlhttp)
     };
     xmlhttp.send(JSON.stringify(request_dict));
 }
 
 function image_request() {
-    if(typeof hash != 'undefined') {
-        server_request("", "api/build-request/" + hash, image_request_handler)
+    if (typeof hash != 'undefined') {
+        server_request("", "/api/build-request/" + hash, image_request_handler)
     } else {
-        server_request(request_dict, "api/build-request", image_request_handler)
+        server_request(request_dict, "/api/build-request", image_request_handler)
     }
 }
 
@@ -509,13 +411,17 @@ function image_request_handler(response) {
     hash = response_content.request_hash
     if (response.status === 400) {
         error_box_content = response_content.error
-        if('log' in response_content) {
-            error_box_content += ' <a href="' + response_content.log + '">Build log</a>'
+        if ('log' in response_content) {
+            error_box_content += ' <a target="_blank" href="' + server + response_content.log + '">' + tr("tr-buildlog") + '</a>'
         }
         error_box(error_box_content)
     } else if (response.status === 404) {
         delete hash;
         image_request();
+    } else if (response.status === 409) {
+        error_box_content = tr("tr-manifest-fail")
+        error_box_content += ' <a target="_blank" href="' + server + response_content.log + '">' + tr("tr-buildlog") + '</a>'
+        error_box(error_box_content)
     } else if (response.status === 412) {
         // this is a bit generic
         error_box(tr("tr-unsupported"))
@@ -528,8 +434,8 @@ function image_request_handler(response) {
         error_box(tr("tr-no-sysupgrade"))
     } else if (response.status === 500) {
         error_box_content = response_content.error
-        if('log' in response_content) {
-            error_box_content += ' <a href="' + response_content.log + '">' + tr("tr-buildlog") + '</a>'
+        if ('log' in response_content) {
+            error_box_content += ' <a target="_blank" href="' + server + response_content.log + '">' + tr("tr-buildlog") + '</a>'
         }
         error_box(error_box_content)
     } else if (response.status === 503) {
@@ -538,83 +444,115 @@ function image_request_handler(response) {
         setTimeout(image_request, 30000)
     } else if (response.status === 202) {
         var imagebuilder = response.getResponseHeader("X-Imagebuilder-Status");
-        if(imagebuilder === "queue") {
-            // in queue
-            var queue = response.getResponseHeader("X-Build-Queue-Position");
-            info_box(tr("tr-queue-position"))
-        } else if(imagebuilder === "initialize") {
-            info_box(tr("tr-initialize-imagebuilder"));
-        } else if(imagebuilder === "building") {
-            info_box(tr("tr-building"));
+        if (imagebuilder === "queue") {
+            var position = response.getResponseHeader("X-Build-Queue-Position");
+            if (position === null) {
+                info_box(tr("tr-queue"), true)
+            } else {
+                if (position === last_position) {
+                    queue_counter += 1;
+                } else {
+                    last_position = position;
+                    queue_counter = 0;
+                }
+                if (queue_counter < 30) {
+                    info_box(tr("tr-queue") + ". " + tr("tr-position") + ": " + position, true)
+                } else {
+                    error_box(tr("tr-queue-error"))
+                    return;
+                }
+            }
+        } else if (imagebuilder === "building") {
+            info_box(tr("tr-building"), true);
         } else {
-            info_box("Processing request"); // should never be shown
+            info_box("Processing request", true); // should never be shown
             console.log(imagebuilder)
         }
         setTimeout(image_request, 5000);
 
     } else if (response.status === 200) {
         // ready to download
-        files_url = response_content.files
+        data.files = response_content.files
         load_files();
         hide("#info_box");
         show("#download_box");
 
-        if("sysupgrade" in response_content) {
-            $("#download_sysupgrade").setAttribute('href', response_content.sysupgrade)
-            show("#download_sysupgrade_div");
+        if ("sysupgrade" in response_content) {
+            $("#download_sysupgrade").setAttribute('href', server + response_content.files + response_content.sysupgrade)
+            show("#download_div");
         } else {
-            hide("#download_sysupgrade_div");
+            hide("#download_div");
         }
-        $("#download_build_log").setAttribute('href', response_content.log)
-        location.hash = response_content.image_hash
-        load_image_info()
+        $("#download_build_log").setAttribute('href', server + response_content.log)
+        location.hash = response_content.request_hash
+        data.image_hash = response_content.image_hash
+        load_image_info();
     }
 }
 
 function load_files() {
-    var xmlhttp = new XMLHttpRequest();
+    fetch(server + data.files)
+        .then(response => response.json())
+        .then(function(response_content) {
+            $("#files_count").innerHTML = " (" + response_content.length + ")"
+            var files_box = $("#files_box")
+            files_box.innerHTML = ""
+            var list = document.createElement('ul');
 
-    xmlhttp.open("GET", files_url, true);
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            releases_results(xmlhttp);
-        }
-    }
-    xmlhttp.send(null);
-
-    function releases_results(xmlhttp) {
-        var response_content = JSON.parse(xmlhttp.responseText);
-        files_box = $("#files_box")
-        files_box.innerHTML = "</br><h5>Created files</h5>"
-        var list = document.createElement('ul');
-
-        var factory_files = []
-        for(var i = 0; i < response_content.length; i++) {
-            var item = document.createElement('li');
-            var link = document.createElement('a');
-            if(response_content[i].name.includes("factory")) {
-                factory_files[factory_files.length] = response_content[i].name
+            var factory_files = []
+            for (var i = 0; i < response_content.length; i++) {
+                var item = document.createElement('li');
+                var link = document.createElement('a');
+                if (response_content[i].name.includes("factory")) {
+                    factory_files[factory_files.length] = response_content[i].name
+                }
+                link.href = server + data.files + response_content[i].name
+                link.innerHTML = response_content[i].name
+                item.appendChild(link)
+                list.appendChild(item);
             }
-            link.href = files_url + response_content[i].name
-            link.innerHTML = response_content[i].name
-            item.appendChild(link)
-            list.appendChild(item);
-        }
-        if(factory_files.length == 1) {
-            data.factory = files_url + factory_files[0]
-            $("#download_factory").setAttribute('href', data.factory)
-            show("#download_factory_div");
-            if (!document.request_form.advanced_view.checked) {
-                hide("#files_box");
+            if (factory_files.length == 1) {
+                $("#download_factory").setAttribute('href', server + data.files + factory_files[0])
+                show("#download_factory_div");
+            } else {
+                hide("#download_factory_div");
             }
-        } else {
-            data.factory = ""
-            hide("#download_factory_div");
-            show("#files_box");
-        }
-        files_box.appendChild(list);
-    }
+            files_box.appendChild(list);
+        });
+}
+
+function request_server_image() {
+    request_dict = {}
+    request_dict.distro = "openwrt";
+    request_dict.version = "18.06.2";
+    request_dict.target = "x86/64"
+    request_dict.board = "Generic"
+    request_dict.defaults = ""
+    request_dict.packages = ["bash", "bzip2", "coreutils", "coreutils-stat",
+        "diffutils", "file", "gawk", "gcc", "getopt", "git", "libncurses",
+        "make", "patch", "perl", "perlbase-attributes", "perlbase-findbin",
+        "perlbase-getopt", "perlbase-thread", "python-light", "tar", "unzip",
+        "wget", "xz", "xzdiff", "xzgrep", "xzless", "xz-utils", "zlib-dev",
+        "gunicorn", "python3-flask", "python3-yaml", "python3-openssl",
+        "python3-pyodbc", "python3-ctypes", "python3-distutils"
+    ]
+    image_request()
+}
+
+function request_worker_image() {
+    request_dict = {}
+    request_dict.distro = "openwrt";
+    request_dict.version = "18.06.2";
+    request_dict.target = "x86/64"
+    request_dict.board = "Generic"
+    request_dict.defaults = ""
+    request_dict.packages = ["bash", "bzip2", "coreutils", "coreutils-stat",
+        "diffutils", "file", "gawk", "gcc", "getopt", "git", "libncurses",
+        "make", "patch", "perl", "perlbase-attributes", "perlbase-findbin",
+        "perlbase-getopt", "perlbase-thread", "python-light", "tar", "unzip",
+        "wget", "xz", "xzdiff", "xzgrep", "xzless", "xz-utils", "zlib-dev"
+    ]
+    image_request()
 }
 
 translations = {};
